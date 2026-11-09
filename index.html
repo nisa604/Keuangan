@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catatan keuangan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F2F5F3; --surface: #FFFFFF; --ink: #13201C; --muted: #5C6B66; --line: #D9E1DD;
+    --in: #0B7A62; --out: #B3254B; --accent: #1F3FBF; --accent-ink: #FFFFFF;
+    --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0E1513; --surface: #16201D; --ink: #E7EFEC; --muted: #92A39D; --line: #26352F;
+      --in: #3CC9A4; --out: #FF7A98; --accent: #8DA2FF; --accent-ink: #0E1513;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--font); font-size: 16px; line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+  main { max-width: 560px; margin: 0 auto; padding: 28px 18px 56px; }
+  h1, h2 { margin: 0; letter-spacing: -0.01em; }
+  h2 { font-size: 1.05rem; font-weight: 700; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .top h1 { font-size: 1.1rem; font-weight: 700; }
+  .period { color: var(--muted); font-size: 0.85rem; }
+
+  /* Saldo: satu-satunya elemen besar di halaman */
+  .balance { margin: 22px 0 26px; }
+  .balance .label { color: var(--muted); font-size: 0.9rem; }
+  .balance .amount { font-size: clamp(2.2rem, 11vw, 3.2rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin: 2px 0 14px; }
+  .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); }
+  .bar i { display: block; height: 100%; transition: width .4s ease; }
+  .bar .b-in { background: var(--in); }
+  .bar .b-out { background: var(--out); }
+  .legend { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: 0.9rem; }
+  .legend b { font-weight: 700; }
+  .legend .l-in b { color: var(--in); }
+  .legend .l-out b { color: var(--out); text-align: right; }
+  .legend .l-out { text-align: right; }
+  .legend span { color: var(--muted); display: block; font-size: 0.8rem; }
+
+  section { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 18px; }
+  section > h2 { margin-bottom: 14px; }
+
+  form { display: grid; gap: 14px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg label { text-align: center; padding: 10px; cursor: pointer; font-weight: 600; color: var(--muted); }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg input:checked + span { color: var(--ink); }
+  .seg label:has(input:checked) { background: var(--ink); color: var(--bg); }
+  .seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .field { display: grid; gap: 5px; }
+  .field > span { font-size: 0.85rem; font-weight: 600; }
+  input[type=text], input[type=date], input[type=password], input[type=url], input[inputmode] {
+    width: 100%; font: inherit; color: inherit; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px;
+  }
+  input:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .money { position: relative; }
+  .money b { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-weight: 600; }
+  .money input { padding-left: 42px; font-size: 1.15rem; font-weight: 700; }
+  button.primary {
+    font: inherit; font-weight: 700; border: 0; border-radius: 10px; cursor: pointer;
+    padding: 13px; background: var(--accent); color: var(--accent-ink);
+  }
+  button.primary:disabled { opacity: .6; cursor: progress; }
+  .msg { min-height: 1.3em; font-size: 0.9rem; margin: 0; }
+  .msg.ok { color: var(--in); }
+  .msg.err { color: var(--out); }
+
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: baseline; padding: 11px 0; border-top: 1px solid var(--line); }
+  li:first-child { border-top: 0; padding-top: 0; }
+  li .d { color: var(--muted); font-size: 0.85rem; }
+  li .k { font-weight: 600; }
+  li .n { color: var(--muted); font-size: 0.85rem; display: block; overflow-wrap: anywhere; }
+  li .v { font-weight: 700; white-space: nowrap; }
+  li .v.in { color: var(--in); }
+  li .v.out { color: var(--out); }
+  .empty { color: var(--muted); margin: 0; }
+
+  details { color: var(--muted); font-size: 0.9rem; }
+  summary { cursor: pointer; font-weight: 600; }
+  details form { margin-top: 12px; }
+  details p { margin: 10px 0 0; }
+
+  @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <h1>Catatan keuangan</h1>
+    <span class="period" id="period">Memuat periode…</span>
+  </div>
+
+  <div class="balance">
+    <div class="label">Saldo periode ini</div>
+    <div class="amount" id="saldo">Rp 0</div>
+    <div class="bar" aria-hidden="true"><i class="b-in" id="barIn" style="width:50%"></i><i class="b-out" id="barOut" style="width:50%"></i></div>
+    <div class="legend">
+      <div class="l-in"><span>Pemasukan</span><b id="masuk">Rp 0</b></div>
+      <div class="l-out"><span>Pengeluaran</span><b id="keluar">Rp 0</b></div>
+    </div>
+  </div>
+
+  <section>
+    <h2>Catat transaksi</h2>
+    <form id="form" autocomplete="off">
+      <div class="seg" role="radiogroup" aria-label="Jenis transaksi">
+        <label><input type="radio" name="jenis" value="Pengeluaran" checked><span>Pengeluaran</span></label>
+        <label><input type="radio" name="jenis" value="Pemasukan"><span>Pemasukan</span></label>
+      </div>
+      <label class="field"><span>Nominal</span>
+        <div class="money"><b>Rp</b><input id="nominal" inputmode="numeric" placeholder="0" required></div>
+      </label>
+      <div class="row">
+        <label class="field"><span>Tanggal</span><input type="date" id="tanggal" required></label>
+        <label class="field"><span>Kategori</span><input type="text" id="kategori" list="kategoriList" placeholder="Pilih atau ketik" required maxlength="50"></label>
+      </div>
+      <datalist id="kategoriList">
+        <option>Makan</option><option>Transport</option><option>Tagihan</option><option>Belanja</option>
+        <option>Hiburan</option><option>Kesehatan</option><option>Gaji</option><option>Lainnya</option>
+      </datalist>
+      <label class="field"><span>Catatan (boleh kosong)</span><input type="text" id="catatan" maxlength="200"></label>
+      <button class="primary" id="simpan" type="submit">Simpan transaksi</button>
+      <p class="msg" id="msg" role="status"></p>
+    </form>
+  </section>
+
+  <section>
+    <h2>Transaksi terakhir</h2>
+    <ul id="list"></ul>
+    <p class="empty" id="empty" hidden>Belum ada transaksi. Catat yang pertama di atas.</p>
+  </section>
+
+  <details id="settings">
+    <summary>Pengaturan</summary>
+    <form id="settingsForm">
+      <label class="field"><span>Kata sandi (sama dengan TOKEN di Code.gs)</span>
+        <input type="password" id="token" autocomplete="off"></label>
+      <button class="primary" type="submit">Simpan kata sandi</button>
+      <p>Kata sandi disimpan hanya di browser ini.</p>
+    </form>
+  </details>
+</main>
+
+<script>
+  // Tempel URL web app dari Apps Script (Deploy > Manage deployments) di sini:
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxlcu_AkoEughTLgPQcQ6j53pJ1hpcfnHZTo2JMzBrPSLUF8Rozf8ggUL97254h-7tZqA/exec';
+
+  const $ = (id) => document.getElementById(id);
+  const rp = (n) => (n < 0 ? '-' : '') + 'Rp ' + Math.round(Math.abs(n)).toLocaleString('id-ID');
+
+  function getToken() { try { return localStorage.getItem('keuangan_token') || ''; } catch (e) { return ''; } }
+  function setToken(v) { try { localStorage.setItem('keuangan_token', v); } catch (e) {} }
+
+  function say(text, kind) { const m = $('msg'); m.textContent = text; m.className = 'msg ' + (kind || ''); }
+
+  function today() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function render(data) {
+    $('period').textContent = data.periode;
+    $('saldo').textContent = rp(data.saldo);
+    $('masuk').textContent = rp(data.masuk);
+    $('keluar').textContent = rp(data.keluar);
+    const total = data.masuk + data.keluar;
+    const pIn = total > 0 ? (data.masuk / total) * 100 : 50;
+    $('barIn').style.width = pIn + '%';
+    $('barOut').style.width = (100 - pIn) + '%';
+
+    const ul = $('list');
+    ul.textContent = '';
+    $('empty').hidden = data.recent.length > 0;
+    data.recent.forEach((r) => {
+      const [y, m, d] = r.tanggal.split('-').map(Number);
+      const li = document.createElement('li');
+      const dEl = document.createElement('span'); dEl.className = 'd';
+      dEl.textContent = new Date(y, m - 1, d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+      const mid = document.createElement('span');
+      const k = document.createElement('span'); k.className = 'k'; k.textContent = r.kategori;
+      mid.appendChild(k);
+      if (r.catatan) { const n = document.createElement('span'); n.className = 'n'; n.textContent = r.catatan; mid.appendChild(n); }
+      const v = document.createElement('span');
+      const isIn = r.jenis === 'Pemasukan';
+      v.className = 'v ' + (isIn ? 'in' : 'out');
+      v.textContent = (isIn ? '+' : '-') + rp(r.nominal);
+      li.append(dEl, mid, v);
+      ul.appendChild(li);
+    });
+  }
+
+  async function load() {
+    if (API_URL.indexOf('GANTI') === 0) { say('Isi API_URL di index.html dengan URL web app Apps Script.', 'err'); return; }
+    const token = getToken();
+    if (!token) { $('settings').open = true; say('Isi kata sandi di Pengaturan dulu.', 'err'); return; }
+    try {
+      const res = await fetch(API_URL + '?token=' + encodeURIComponent(token));
+      const data = await res.json();
+      if (!data.ok) { say(data.error + '. Periksa kata sandi di Pengaturan.', 'err'); return; }
+      render(data);
+    } catch (e) {
+      say('Tidak bisa memuat data. Cek koneksi dan URL web app.', 'err');
+    }
+  }
+
+  $('nominal').addEventListener('input', (e) => {
+    const digits = e.target.value.replace(/\D/g, '');
+    e.target.value = digits ? Number(digits).toLocaleString('id-ID') : '';
+  });
+
+  $('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nominal = Number($('nominal').value.replace(/\D/g, ''));
+    if (!(nominal > 0)) { say('Isi nominal lebih dari 0.', 'err'); return; }
+    const btn = $('simpan');
+    btn.disabled = true; btn.textContent = 'Menyimpan…'; say('');
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          token: getToken(),
+          jenis: document.querySelector('input[name=jenis]:checked').value,
+          nominal: nominal,
+          tanggal: $('tanggal').value,
+          kategori: $('kategori').value.trim(),
+          catatan: $('catatan').value.trim()
+        })
+      });
+      const data = await res.json();
+      if (!data.ok) { say(data.error, 'err'); }
+      else {
+        say('Tersimpan.', 'ok');
+        $('nominal').value = ''; $('catatan').value = '';
+        load();
+      }
+    } catch (err) {
+      say('Gagal menyimpan. Cek koneksi lalu coba lagi.', 'err');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Simpan transaksi';
+    }
+  });
+
+  $('settingsForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    setToken($('token').value.trim());
+    $('settings').open = false;
+    say('');
+    load();
+  });
+
+  $('tanggal').value = today();
+  $('token').value = getToken();
+  load();
+</script>
+</body>
+</html>
